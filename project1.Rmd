@@ -1,0 +1,208 @@
+---
+title: Were the 2021 Mariners lucky, good or both?
+author: Cody Zanga
+date: '2022-03-24'
+slug: mariners
+categories: []
+tags: []
+---
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+library(tidyverse)
+library(ggalt)
+library(gt)
+library(ggrepel)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+mlb21 <- read_csv("data/2021_MLB.csv")
+```
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+rundiff <- mlb21 %>%
+  mutate(differential = R - RA)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+pitching <- read_csv("data/2021_MLB_Pitching.csv")
+```
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+pitching$differential <- rundiff$differential
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+seattle <- pitching %>% filter(Tm == "Seattle Mariners")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+playoffs <- pitching %>%
+  filter(W > 87)
+```
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+teamdifferential <- playoffs %>% 
+  select(Tm, W, L, differential) %>%
+  arrange(desc(W))
+```
+
+Fans of the Seattle Mariners have had to face more consistent ineptitude than almost any other professional team in American sports. For a team that has been around since 1977 to only have four playoff appearances is unacceptable. Currently, the last playoff appearance for the Mariners was in 2001, which was 21-years-ago. With that said, the Mariners are the proud owners of the longest playoff drought in American sports, but last season there was a glimmer of hope.
+
+Somehow, someway the Mariners clawed their way to an improbable 90-win season. Was this just a miracle or does this point to potential future success? How does a team that ranked between the middle and bottom of most important statistics manage to find their way to 90 wins?
+
+Well there's a couple ways, first you have to take advantage of your potential scoring opportunities and second you have to avoid giving up the lead once you grabbed a hold of it.
+
+The Mariners weren't great at many things last year, but the one thing they were good at was getting saves. MLB defines saves as a relief pitcher preserving his team's lead by entering a game with a lead of no more than three runs and pitches at least one inning, by entering the game with the tying run in the on-deck circle, at the plate or on the base paths, or pitches as least three innings. Keep in mind that in all these situations the team must win the game. 
+
+Seattle had 51 saves last year, which was good for 3rd in the MLB. 
+
+Using data from Baseball Reference and Fangraphs, we'll take a look at how the Mariners were able to beat the odds and far outperform their expected win total.
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+teamdifferential %>% gt() %>%
+  cols_label(Tm = "Team", W = "Win", L = "Loss", differential = "Run Differential") %>%
+  tab_header(title = "Are the 2021 Mariners the kings of winning close games?",
+             subtitle = "Seattle is one of only four teams in MLB history to win 90 games with a negative run differential.") %>%
+  tab_style(style = cell_text(color = "black", weight = "bold", align = "left"),
+    locations = cells_title("title")) %>%
+  tab_style(
+    style = cell_text(color = "black", align = "left"),
+    locations = cells_title("subtitle")) %>%
+  tab_source_note(
+    source_note = md("**By:** Cody Zanga  |  **Source:** [Baseball Reference](https://www.baseball-reference.com/leagues/majors/2021.shtml#all_teams_standard_batting)")) %>%
+  tab_style(
+     locations = cells_column_labels(columns = everything()),
+     style = list(
+       cell_borders(sides = "bottom", weight = px(3)),
+       cell_text(weight = "bold", size=12))
+   ) %>%
+  opt_row_striping() %>% 
+  opt_table_lines("none") %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#005C5C"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = Tm == "Seattle Mariners")
+  )
+```
+
+Here you can see how Seattle stacked up to some of the best teams in baseball last year. You might notice that the Mariner's have the worst run differential out of all these teams, yet somehow they nearly had the same win total as the Toronto Blue Jays. 
+
+The Atlanta Braves, the World Series champs had a somewhat inverted result compared to Seattle. They won fewer games, but their run differential would have you believe they're a better team than their record indicates. 
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot() +
+  geom_point(data=pitching, aes(x=differential, y=W), color="black") +
+  geom_point(data=seattle, aes(x=differential, y=W), color="#005C5C") +
+  geom_smooth(data=pitching, aes(x=differential, y=W), method = "lm") +
+  geom_text(data=seattle, aes(x=differential-10, y=W+3, label=Tm)) +
+  geom_text(aes(x=125, y=55, label="Positive run differential, but not winning."), color="slategray2") +
+  geom_text(aes(x=-200, y=105, label="Negative run differential, but winning."), color="slategray2") +
+  geom_encircle(data=seattle, aes(x=differential-10, y=W+3), s_shape=.01, expand=.01, colour="#005C5C") +
+  labs(title = "Seattle outperformed their projections.", subtitle = "The Mariners won 14 more games than they should've given their run differential.", x="Run Differential", y="Wins", caption = "Source: Baseball Reference | By Cody Zanga") +
+   theme_minimal() + 
+   theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+```
+
+There's a strong correlation between run differential and winning games. Seattle overachieved more than any other team in the MLB last year. 
+
+When you look at this from the standpoint that the Mariners should have only won 76 games last year, suddenly you don't feel as good about them bursting onto the playoff scene this year.
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+mlbclutch <- read_csv("data/mlb_clutch_stats.csv")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+topclutch <- mlbclutch %>% arrange(desc(Clutch)) %>%
+  top_n(10, Clutch)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+seattleclutch <- topclutch %>% 
+  filter(Team == "SEA")
+```
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot() +
+  geom_bar(data = topclutch, aes(x=reorder(Team, Clutch), weight = Clutch)) +
+  geom_bar(data = seattleclutch, aes(x=reorder(Team, Clutch),weight = Clutch), fill = "#005C5C") +
+  geom_text(aes(x=5, y=5, label="A clutch value of 2 is considered excellent \nfor an individual player."), color="slategray2") +
+  scale_y_continuous(breaks = c(2, 4, 6, 8)) +
+  coord_flip() +
+  labs(title = "Seattle was the best team in baseball at coming up big when \nthey needed it most.", 
+       subtitle = "The 2021 Mariners were one of the most clutch teams in MLB history.",
+       x = "Teams", y = "Clutch Value", caption = "Source: Fangraphs | By Cody Zanga") +
+   theme_minimal() + 
+   theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+```
+
+David Appelman of Fangraphs defines clutch as "how much better or worse a player does in high leverage situations than he would have done in a context neutral environment." A high leverage situation would be a specific point in a game that could cause a significant shift in the outcome of that game, such as getting a base hit with the bases loaded and two outs when your team is down one run.
+
+In these big time situations where the Mariners had to have something go their way, more often than not they were able to make magic happen.
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+wschamps <- pitching %>%
+  filter(Tm == "Atlanta Braves")
+```
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot() +
+  geom_point(data = pitching, aes(x = SV, y = differential, size = W), color = "grey") +
+  geom_point(data = playoffs, aes(x = SV, y = differential, size = W), color = "black") +
+  geom_point(data = wschamps, aes(x = SV, y = differential, size = W), color = "red") +
+  geom_point(data = seattle, aes(x = SV, y = differential, size = W), color = "#005C5C") +
+  geom_text(aes(x=49, y=-200, label="Lots of saves, poor run differential"), color="slategray2") +
+  geom_text(aes(x=30, y=95, label="Not many saves, good run differential"), color="slategray2") +
+  geom_vline(xintercept = 39.7) +
+  geom_hline(yintercept = 0) +
+  geom_text_repel(
+    data = seattle,
+    aes(x = SV, y = differential, label = Tm),
+    size = 4) +
+  geom_text_repel(
+    data = wschamps,
+    aes(x = SV-2.5, y = differential+10, label = Tm),
+    size = 4) + 
+  labs(
+    x = "Saves", y = "Run Differential",
+    title = "All playoff teams including the World Series champs had a \npositive run differential",
+    subtitle = "Even 51 saves wasn't enough to break Seattle's 20-year playoff drought curse.",
+    size = "Wins",
+    caption = "Source: Baseball Reference | By Cody Zanga"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+```
+
+You might look at this and think to yourself that Seattle is kind of off in their own little area and you would be correct. By the very nature of saves you're typically winning games by small margins. Over half of the Mariners wins came in this fashion, so they were winning a lot of close games. 
+
+How did the Mariners win 90 games with a -51 run differential? Well they won a lot of games in close fashion and came up with clutch plays when they needed them. When they were losing, they were losing big. That's how you find your way to this unlikely result. 
+
+Despite the data making it look more as if the Mariners got lucky last year, especially with their clutch value, hopefully they will find a way to get into the playoffs soon. For fans of the team and baseball fans in general it would be nice to see them finally make it back to the playoffs for the first time since the days of Ichiro Suzuki and Edgar Martinez. 
+
+
+
+
+
