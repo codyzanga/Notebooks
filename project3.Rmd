@@ -1,0 +1,197 @@
+---
+title: Bad umpire calls in MLB.
+author: Cody Zanga
+date: '2022-10-07'
+slug: umpires
+categories: []
+tags: []
+---
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(Hmisc)
+library(GGally)
+library(ggrepel)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+umpire_data <- read_csv("data/umpire_data.csv")
+team_favor <- read_csv("data/team_favor.csv")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+clean_umpire_data <- umpire_data %>% mutate(
+  PitchCount = as.numeric(PC),
+  IncorrectCalls = as.numeric(IC),
+  ExpectedIncorrectCalls = as.numeric(xIC),
+  CorrectCalls = as.numeric(CC),
+  ExpectedCorrectCalls = as.numeric(xCC),
+  CorrectCallsAboveExpected = as.numeric(CCAx),
+  Accuracy = as.numeric(Acc),
+  ExpectedAccuracy = as.numeric(xAcc),
+  AccuracyAboveExpected = as.numeric(AAx),
+  Consistency = as.numeric(Con),
+  FavorHomeTeam = as.numeric(`Fav [H]`),
+  TotalRunImpact = as.numeric(totRI)
+)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+fixed_team_favor <- team_favor %>% 
+  mutate(totFav=gsub("\\*.*","",totFav)) %>%
+  mutate(avgFav=gsub("\\*.*","",avgFav)) %>%
+  mutate(totBI=gsub("\\*.*","",totBI)) %>%
+  mutate(avgBI=gsub("\\*.*","",avgBI)) %>%
+  mutate(totPI=gsub("\\*.*","",totPI)) %>%
+  mutate(avgPI=gsub("\\*.*","",avgPI)) %>%
+  mutate(pctFav=gsub("\\*.*","",pctFav))
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+clean_team_favor <- fixed_team_favor %>% mutate(
+  TotalFavor = as.numeric(totFav),
+  AverageFavor = as.numeric(avgFav),
+  TotalBatterImpact = as.numeric(totBI),
+  AverageBatterImpact = as.numeric(avgBI),
+  TotalPitcherImpact = as.numeric(totPI),
+  AveragePitcherImpact = as.numeric(avgPI),
+  PercentGamesFavored = as.numeric(pctFav)
+)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+clean_umpire_data[1] <- NULL
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+better_umpire_data <- clean_umpire_data %>% 
+  group_by(Umpire)%>%
+  summarise(
+    mean_run_impact = mean(TotalRunImpact),
+    mean_home_favor = mean(FavorHomeTeam),
+    total_incorrect_calls = sum(IncorrectCalls),
+    mean_accuracy = mean(Accuracy),
+    mean_consistency = mean(Consistency),
+    total_games = n()
+     ) %>% 
+  na.omit() %>%
+  arrange(desc(mean_run_impact))
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+JoeWest <- better_umpire_data %>%
+  filter(Umpire == "Joe West")
+
+Ramos <- better_umpire_data %>%
+  filter(Umpire  == "Charlie Ramos")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+worst_umpires <- better_umpire_data %>% 
+  arrange(desc(total_incorrect_calls)) %>%
+  top_n(10, total_incorrect_calls)
+```
+
+Umpires making bad calls is nothing new to baseball. Nearly every game there's balls called strikes and strikes called balls, but how much impact does this really have on the outcome of every game that's played throughout a regular MLB season? Fans of baseball no doubt can bring up moments where they feel like an entire at-bat is changed due to a bad call or even the outcome of the game has been shifted. 
+
+In a few years we might not have to worry about bad calls if MLB switches over to robo umps or an automated strike zone. But for now, we'll use data from Ump Scorecards to look at all the bad calls that were made in the 2021 MLB season and see if these mistakes are as excruciating as they feel.  
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot() +
+  geom_bar(data = worst_umpires, aes(x=reorder(Umpire, total_incorrect_calls), weight=total_incorrect_calls)) +
+  geom_bar(data = JoeWest, aes(x=reorder(Umpire, total_incorrect_calls), weight=total_incorrect_calls), fill = "black") +
+  coord_flip() +
+  labs(title = "The most incorrect calls in baseball.", 
+       subtitle = "Nobody made more bad calls then Joe West in 2021.",
+       x = "Umpires", y = "Total Incorrect Calls", caption = "Source: Ump Scorecards | By Cody Zanga") +
+   theme_minimal() + 
+   theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+```
+
+Here we can see that last year, Joe West made the most incorrect calls of all umpires in baseball in his retirement year no less! West has umpired 5,460 career games, so we might be able to cut him some slack and maybe incorrect calls don't necessarily change the outcome of games after all.
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+noramosumpire <- better_umpire_data[-c(1),]
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot() +
+  geom_point(data = noramosumpire, aes(x = mean_run_impact, y = mean_accuracy), color = "black") +
+  geom_point(data = JoeWest, aes(x = mean_run_impact, y = mean_accuracy), color = "red") +
+  geom_smooth(data = noramosumpire, aes(x = mean_run_impact, y = mean_accuracy), method = "lm") +
+  geom_text(data= JoeWest, aes(x=mean_run_impact, y=mean_accuracy-.3, label=Umpire)) +
+  geom_text(aes(x=1, y=93, label="High accuracy, low run impact."), color="slategray2") +
+  labs(title = "Accuracy has the biggest impact on runs scored.", subtitle = "Umpire accuracy is more important than the overall number of calls they get wrong.", x="Mean Run Impact", y="Mean Accuracy", caption = "Source: Ump Scorecards | By Cody Zanga") +
+   theme_minimal() + 
+   theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+
+```
+
+As it turns out, the total number of incorrect calls is not the most important thing in deciding the amount of impact the umpires have in a game. Accuracy is the biggest factor in determining the run impact an umpire has on a game. Ump Scorecards defines accuracy as "the percentage of pitches called correctly by the umpire." As we can see, the lower the accuracy, the more run impact there is on a game. One thing to note here is that Charlie Ramos was removed from this data set because even though he only umpired two games, he had a drastic impact on the model.
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+sf <- clean_team_favor %>% filter(Team == "SF")
+bal <- clean_team_favor %>% filter(Team == "BAL")
+ari <- clean_team_favor %>% filter(Team == "ARI")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+clean_team_favor %>%
+  summarise(
+    mean_favor = mean(TotalFavor),
+    mean_wins = mean(W)
+  )
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot() +
+  geom_point(data = clean_team_favor, aes(x = TotalFavor, y = W, size = PercentGamesFavored), color = "black") +
+  geom_point(data = sf, aes(x = TotalFavor, y = W, size = PercentGamesFavored), color = "#AE8F6F") +
+  geom_point(data = ari, aes(x = TotalFavor, y = W, size = PercentGamesFavored), color = "#A71930") +
+  geom_point(data = bal, aes(x = TotalFavor, y = W, size = PercentGamesFavored), color = "#DF4601") +
+  geom_text(aes(x=-12, y=65, label="Bad favor, not winning"), color="slategray2") +
+  geom_text(aes(x=15, y=103, label="Good favor, winning"), color="slategray2") +
+  geom_vline(xintercept = 6.846375e-17) +
+  geom_hline(yintercept = 80.96667) +
+  geom_text_repel(
+    data = sf,
+    aes(x = TotalFavor, y = W, label = Team),
+    size = 4) +
+  geom_text_repel(
+    data = ari,
+    aes(x = TotalFavor, y = W, label = Team),
+    size = 4) +
+  geom_text_repel(
+    data = bal,
+    aes(x = TotalFavor, y = W, label = Team),
+    size = 4) +
+  labs(
+    x = "Total Team Favor", y = "Wins",
+    title = "Good umpire favor doesn't neccesarily lead to more wins",
+    subtitle = "The best and worst teams in baseball had similar umpire favor",
+    size = "Percentage of Games Favored",
+    caption = "Source: Umps Scorecards | By Cody Zanga"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+
+```
+
+Now is a good time to see how unintentional favoritism effected teams overall last year. As you can tell the best team in baseball and the two worst teams all had similar poor favor from the umpires. This goes to show that umpires impact on the game overall is not nearly as big as it feels in a particular movement. Sure it hurts to get rung up on a bad strike call with the base loaded or with two outs in the 9th inning, but over the course of the season the good teams are still going to win and the bad teams are still going to lose.
+
