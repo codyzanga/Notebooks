@@ -1,0 +1,187 @@
+---
+title: Who are the best teams in the NFL?
+author: Cody Zanga
+date: '2022-11-17'
+slug: NFL
+categories: []
+tags: []
+---
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+#install.packages("nflplotR")
+#install.packages("nflreadr")
+library(nflplotR)
+library(nflreadr)
+library(tidyverse)
+library(rvest)
+library(gt)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+nfl10 <- read_csv("data/week10_NFL")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+afc <- read_csv("data/afcweek10")
+nfc <- read_csv("data/nfcweek10")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+cleanafc <- afc[-c(1,6,11,16),]
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+cleannfc <- nfc[-c(1,6,11,16),]
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+betterafc <- cleanafc %>% mutate(Tm=gsub("\\*.*","",Tm))
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+perfectafc <- betterafc %>% mutate(Tm=gsub("\\+.*","",Tm))
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+betternfc <- cleannfc %>% mutate(Tm=gsub("\\*.*","",Tm))
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+perfectnfc <- betternfc %>% mutate(Tm=gsub("\\+.*","",Tm))
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+afcplayoff <-c("Kansas City Chiefs", "Miami Dolphins", "Tennessee Titans", "Baltimore Ravens", "New York Jets", "Buffalo Bills", "New England Patriots")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+nfcplayoff <- c("Philadelphia Eagles", "Minnesota Vikings", "Seattle Seahawks", "Tampa Bay Buccaneers", "New York Giants", "Dallas Cowboys", "San Francisco 49ers")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+afc7 <- perfectafc %>% filter(Tm %in% afcplayoff) %>%
+  arrange(desc(W)) %>%
+  arrange(desc(`W-L%`))
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+nfc7 <- perfectnfc %>% filter(Tm %in% nfcplayoff) %>%
+  arrange(desc(W))
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+totalplayoffs <- cbind(afc7, nfc7)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+colnames(totalplayoffs)[14] <- "Team"
+colnames(totalplayoffs)[15] <- "Win"
+colnames(totalplayoffs)[16] <- "Loss"
+colnames(totalplayoffs)[17] <- "Tie"
+colnames(totalplayoffs)[18] <- "Percent"
+colnames(totalplayoffs)[19] <- "PointsFor"
+colnames(totalplayoffs)[20] <- "PointsAgainst"
+colnames(totalplayoffs)[21] <- "Differential"
+colnames(totalplayoffs)[22] <- "Margin"
+colnames(totalplayoffs)[23] <- "Schedule"
+colnames(totalplayoffs)[24] <- "Rating"
+colnames(totalplayoffs)[25] <- "Offensive"
+colnames(totalplayoffs)[26] <- "Defensive"
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+FinalPlayoffs <- totalplayoffs %>% select(Tm, W, L, Team, Win, Loss)
+```
+
+Currently we're in week 10 of the 2022 NFL season and the potential playoff picture is beginning to take form. There's many different ways you can judge how good a team is. You can use the eye test, simply watching the game and deciding who you think looks the best. You can also look at the teams win and loss record and how tough each teams schedule has been up to this point. There's multiple other methods that people use as well. 
+
+With the help of nflreadr and pro-football reference we're going to look at a couple methods that go a little bit deeper in determining how good these teams are at this point in the season. Maybe some of the data we see here could be telling for which team eventually goes onto win the Super Bowl, we'll have to wait and see. 
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+FinalPlayoffs %>% gt() %>%
+  cols_label(Tm = "AFC", W = "Wins", L = "Losses", Team = "NFC", Win = "Wins", Loss = "Losses") %>%
+  tab_header(title = "The 14 teams currently sitting in a playoff spot in week 10.",
+             subtitle = "All AFC East teams are currently in the playoff picture.") %>%
+  tab_style(style = cell_text(color = "black", weight = "bold", align = "left"),
+    locations = cells_title("title")) %>%
+  tab_style(
+    style = cell_text(color = "black", align = "left"),
+    locations = cells_title("subtitle")) %>%
+  tab_source_note(
+    source_note = md("**By:** Cody Zanga  |  **Source:** [Pro-football Reference](https://www.pro-football-reference.com/years/2022/)")) %>%
+  tab_style(
+     locations = cells_column_labels(columns = everything()),
+     style = list(
+       cell_borders(sides = "bottom", weight = px(3)),
+       cell_text(weight = "bold", size=12))
+   ) %>%
+  opt_row_striping() %>% 
+  opt_table_lines("none")
+```
+
+These are the 14 teams that currently hold a playoff spot in week 10. At the top of the AFC, the Chiefs and Dolphins are leading the way, while in the NFC, the Eagles and Vikings are at the top. This list will prove a solid reference point to look back at when we start looking at some deeper analysis.
+
+The categories that we are going to be looking at are expected points added and win probability added, both of these categories have been used in different sports to determine how successful teams are now and how successful they could be in the future.
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+offense <- nfl10 %>% group_by(team = posteam) %>%
+  summarise(
+    off_epa = mean(epa, na.rm = TRUE), 
+    off_wpa = mean(wpa, na.rm = TRUE)
+  )
+  
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+defense <- nfl10 %>% group_by(team = defteam) %>%
+  summarise(
+    def_epa = mean(epa, na.rm = TRUE),
+    def_wpa = mean(wpa, na.rm = TRUE)
+  )
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+off_def <- offense %>% inner_join(defense, by = "team")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot(data = off_def, aes(x = off_epa, y = def_epa)) +
+  geom_abline(slope = -1.5, intercept = seq(0.4, -0.3, -0.1), alpha = .2) +
+  geom_mean_lines(aes(v_var = off_epa, h_var = def_epa)) +
+  geom_nfl_logos(aes(team_abbr = team), width = 0.065, alpha = 0.7) +
+  labs(title = "Expected points added for offense and defense.", subtitle = "Negative epa for defense is a good thing.", x="Offensive epa/play", y="Defensive epa/play", caption = "Source: nflreadr | By Cody Zanga") +
+   theme_minimal() + 
+   theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+ 
+```
+
+To give you a better idea of what expected points added is, the definition from actionnetwork.com says that expected points added is used to determine how many points a specific play is worth to a team. So if a team is moving the ball well, you would expect them to have a high EPA. 
+
+Looking at this graphic, you would expect that the best teams would be in the bottom right quadrant. We have the Vikings, Eagles, Bills, 49ers, Cowboys and Bengals here. All of these teams are currently in the playoffs except for the Bengals, so it will be interesting to see where they go from here. Something else to note is that the top offensive and defensive EPA teams, the Chiefs and Patriots respectively are also in the playoffs at the moment.
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot(data = off_def, aes(x = team, y = off_wpa)) +
+  geom_col(aes(color = team, fill = team), width = 0.7) +
+  scale_color_nfl(type = "secondary") +
+  scale_fill_nfl(alpha = 0.6) +
+  labs(title = "Offensive win probability added for offense", subtitle = "Phialdelphia has the best win propability added on offense.", x="Team", y="Offensive wpa/play", caption = "Source: nflreadr | By Cody Zanga") +
+   theme_minimal() + 
+   theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_nfl_logo(size = 1)
+    )
+```
+
+Now we're looking at each teams win probability added on the offensive side of the ball. Advancedfootballanalytics.com defines WPA as a measure of each play in terms of how much it increased or decreased the teams chance of winning. We can see here that the Eagles have the highest offensive WPA and that also coincides with them being tied for the best record in all of football. On the flip side, we can see that the Broncos have by far the worst offensive WPA and they also sit at a poor 3-6 record at the moment. 
+
+These story lines will be fun to follow as the season continues. Will the Eagles with the best WPA in football make it to the Super Bowl? Will a Bengals team that appears to be under performing be able to charge into the playoffs and how will the best offensive and defesnive EPA teams fair?
+
+
+
+
