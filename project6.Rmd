@@ -1,0 +1,147 @@
+---
+title: The best NBA teams and players
+author: Cody Zanga
+date: '2022-11-28'
+slug: NBA
+categories: []
+tags: []
+---
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+library(tidyverse)
+library(ggrepel)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+team_nba <- read_csv("data/Team_NBA_22.csv")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+player_nba <- read_csv("data/Player_NBA_22.csv")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+player_nba <- player_nba %>% filter(Rk != "Rk")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+better_player_nba <- player_nba %>% mutate(
+  WinShares = as.numeric(WS)
+)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+Bos <- team_nba %>% filter(Team == "Boston Celtics")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+Hou <- team_nba %>% filter(Team == "Houston Rockets")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+Det <- team_nba %>% filter(Team == "Detroit Pistons")
+```
+
+The NBA season is just around quarter mark in the 2022 season and there are already some teams and players that are separating from the rest of the pack. As with other sports, there are different ways we can look to judge and evaluate each team. Even though it's still early in the season, we can look to see how things are trending right now.
+
+Using data from basketball-reference, we're going to look at how thing stand currently in the NBA. We'll see that one team is looking significantly better than all the others while also looking at a handful of players that have already had a massive impact on their respective teams win totals. 
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot() +
+  geom_point(data = team_nba, aes(x=Effective_FieldGoal_Percentage, y=Turnover_Percentage, size = Wins), color = "black") +
+  geom_point(data = Bos, aes(x=Effective_FieldGoal_Percentage, y=Turnover_Percentage, size = Wins), color = "#007A33") +
+  geom_point(data = Hou, aes(x=Effective_FieldGoal_Percentage, y=Turnover_Percentage, size = Wins), color = "#CE1141") +
+  geom_point(data = Det, aes(x=Effective_FieldGoal_Percentage, y=Turnover_Percentage, size = Wins), color = "#1D42BA") +
+  guides(size = guide_legend(override.aes = list(color = "black"))) +
+  geom_vline(xintercept = 0.5362667) +
+  geom_hline(yintercept = 13.18) +
+  geom_text(aes(x=0.56, y=11.5, label="Good eFG%, low turnover rate"), color = "slategray2") +
+  geom_text(aes(x=0.515, y=15, label="Poor eFG%, high turnover rate"), color = "slategray2") +
+  geom_text_repel(
+    data = Bos,
+    aes(x=Effective_FieldGoal_Percentage, y=Turnover_Percentage, label = Team),
+    size = 4) +
+  geom_text_repel(
+    data = Hou,
+    aes(x=Effective_FieldGoal_Percentage, y=Turnover_Percentage, label = Team),
+    size = 4) +
+  geom_text_repel(
+    data = Det,
+    aes(x=Effective_FieldGoal_Percentage, y=Turnover_Percentage, label = Team),
+    size = 4) +
+  labs(
+    x = "Effective Field Goal Percentage", y = "Turnover Percentage",
+    title = "The Boston Celtics shoot better than any team in the league \nand have the best record in the NBA.",
+    subtitle = "The worst teams in the NBA don't shoot the ball well.",
+    size = "Wins",
+    caption = "Source: Basketball-Reference | By Cody Zanga"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+```
+
+Here we're looking at each teams turnover rate in conjunction with their effective field goal percentage. Bleacher report defines effective field goal percentage as showing how efficient a team is scoring while taking three-pointers into account and using total points scored. This is similar to true shooting percentage except we're not including free throws in the calculation.
+
+We can see that the Boston Celtics are the most efficient shooting team in the NBA, while also maintaining a fairly low turnover rate. These two thing have led to Boston having the best record in the association. Conversely, Houston and Detroit have the worst records in the NBA. Both teams are shooting the ball poorly and in the case of Houston, they're also turning the ball over at a high rate.
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+win_shares <- better_player_nba %>% arrange(desc(WinShares)) %>%
+  top_n(5)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+Doncic <- win_shares %>% filter(Tm == "DAL")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot() +
+  geom_bar(data = win_shares, aes(x=reorder(Player, WinShares), weight = WinShares)) +
+  geom_bar(data = Doncic, aes(x=reorder(Player, WinShares), weight = WinShares), fill = "#00538C") +
+  scale_y_continuous(breaks = c(0, 1, 2, 3, 4)) +
+  coord_flip() +
+  labs(title = "Only five players have been worth more than 3 wins \nto their teams.", subtitle = "The NBA season is only a 4th of the way done.", x="Player", y="Win Shares", caption = "Source: Basketball-Reference | By Cody Zanga") +
+   theme_minimal() + 
+   theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+```
+
+These five players already have more than three win shares early in the season. Once again, bleacher report says that win shares "estimate an individual player's contribution to their team's win total." Looking at the Dallas Mavericks, they've won 9 games so far this year and Luka Dončić would be worth 3.6 of those 9 wins.
+
+It will interesting to see who ends up with the most win shares at the end of the season, but having one player worth a third of his teams wins would be incredible. To put it into perspective, the most win shares in a single season is Kareem Abdul-Jabbar with 25.37 of his teams 63 wins in 1971. 
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+ggplot() +
+  geom_point(data = team_nba, aes(x = Simple_Rating_System, y = Wins), color = "black") +
+  geom_point(data = Bos, aes(x = Simple_Rating_System, y = Wins), color = "#007A33") +
+  geom_text_repel(
+    data = Bos,
+    aes(x=Simple_Rating_System, y=Wins, label = Team),
+    size = 4) +
+  geom_smooth(data = team_nba, aes(x = Simple_Rating_System, y = Wins), method = "lm") +
+  labs(title = "The simple rating system is a good indicator of how \ngood a team really is.", subtitle = "The Celtics are amoung the best in the NBA in muliple categories.", x="Simple Rating System", y="Wins", caption = "Source: Basketball-Reference | By Cody Zanga") +
+   theme_minimal() + 
+   theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 10), 
+    plot.subtitle = element_text(size=12), 
+    panel.grid.minor = element_blank()
+    )
+
+```
+
+Lastly, we're looking at the Simple Rating System (SRS) and how it's related to a teams win total. First off, to get your SRS you take a teams average margin of victory on the season and add it to that teams strength of schedule rating. The SRS is defined by basketball-reference as how many points better that an average a team is. 
+
+So if we look at Celtics again, they have a SRS of 7.50. This means that the Celtics are 7.50 points better than an average NBA team. As we've seen in a couple of categories, Boston is leading the way by a decent margin. The season is still relatively early, but Boston will be a team to watch to see if they're truly the best team in the NBA.
+
+
+
+
